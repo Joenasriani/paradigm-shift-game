@@ -2,477 +2,313 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paradigm Shift - The Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Paradigm Shift</title>
+    
+    <!-- Typography: Uni Sans -->
+    <link href="https://fonts.cdnfonts.com/css/uni-sans" rel="stylesheet">
+
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #050505;
-            font-family: 'Courier New', Courier, monospace;
-            color: white;
+        :root {
+            --bg-color: #000000;
+            --gummy-pink: rgba(236, 64, 122, 0.4);
+            --sugar-white: rgba(255, 255, 255, 0.95);
+            --accent-green: #55efc4;
         }
-        #canvas-container {
-            width: 100%;
-            height: 100vh;
-            display: block;
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: var(--bg-color); 
+            font-family: 'Uni Sans', sans-serif; 
+            font-weight: 100; 
+            touch-action: none;
+            letter-spacing: 1px; 
         }
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+
+        /* --- INTRO ANIMATION --- */
+        #intro-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a0033; 
+            z-index: 9999;
             display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 40px;
-            box-sizing: border-box;
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            animation: fadeOutIntro 1s ease-in-out forwards;
+            animation-delay: 3.5s; 
         }
-        #lyrics-container {
+
+        .intro-title {
+            color: #ffffff;
+            font-size: 10vw; 
+            font-weight: 100;
             text-align: center;
-            transition: opacity 1s ease;
+            line-height: 0.9;
+            opacity: 0;
+            animation: cinematicText 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            animation-delay: 0.5s;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
         }
-        h1 {
-            font-size: 1.2rem;
-            letter-spacing: 4px;
-            opacity: 0.7;
-            text-transform: uppercase;
+
+        @keyframes cinematicText {
+            0% {
+                opacity: 0;
+                letter-spacing: -10px;
+                transform: scale(0.95);
+                filter: blur(10px);
+            }
+            100% {
+                opacity: 1;
+                letter-spacing: 5px; 
+                transform: scale(1);
+                filter: blur(0px);
+            }
         }
-        p.lyric-line {
-            font-size: 1.2rem;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 5px;
+
+        @keyframes fadeOutIntro {
+            0% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
         }
-        .highlight {
-            color: #00ffff;
-            font-weight: bold;
-        }
-        #status-bar {
-            text-align: center;
-            font-size: 0.9rem;
-            opacity: 0.5;
-        }
-        #progress-bar {
-            width: 200px;
-            height: 2px;
-            background: #333;
-            margin: 10px auto;
-        }
-        #progress-fill {
-            height: 100%;
-            background: #00ffff;
-            width: 0%;
-            transition: width 0.2s;
-        }
-        #start-screen {
+
+        /* --- 1. CANVAS DYNAMICS --- */
+        #syrup-bg {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
+            z-index: -1;
+            overflow: hidden;
+            background: #000000;
+        }
+        
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(50px);
+            opacity: 0.6;
+            animation: morph 10s infinite alternate ease-in-out;
+        }
+        .blob:nth-child(1) { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #ff9f43; animation-duration: 12s; }
+        .blob:nth-child(2) { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: #ff5252; animation-duration: 15s; }
+        .blob:nth-child(3) { top: 40%; left: 40%; width: 40vw; height: 40vw; background: #ffcccc; opacity: 0.3; animation-duration: 9s; }
+
+        @keyframes morph {
+            0% { transform: translate(0, 0) scale(1); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+            50% { transform: translate(20px, -20px) scale(1.1); border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+            100% { transform: translate(-20px, 20px) scale(0.9); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+        }
+
+        /* --- 2. UI SURFACE --- */
+        #ui {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            width: 100%;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            pointer-events: none;
             z-index: 10;
+            opacity: 0; 
+            transition: opacity 1s ease-in;
         }
-        button {
-            background: transparent;
-            border: 1px solid #00ffff;
-            color: #00ffff;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.3s;
+
+        .gummy-panel {
+            background: var(--gummy-pink);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 24px;
+            padding: 12.5px 20px;
+            text-align: center;
+            box-shadow: 
+                inset 0 0 15px rgba(255,255,255,0.2), 
+                0 15px 35px rgba(199, 21, 133, 0.25);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto;
+            min-width: 140px; 
         }
-        button:hover {
-            background: #00ffff;
-            color: black;
-            box-shadow: 0 0 20px #00ffff;
+
+        .gummy-panel:active {
+            transform: scale(0.95);
         }
+
+        #level-indicator {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 100;
+            letter-spacing: 2px;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            opacity: 0; 
+            transition: opacity 1s ease-in;
+        }
+
+        h1#object-name { 
+            margin: 0; 
+            font-size: 0.9rem; 
+            font-weight: 100; 
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 4px 12px rgba(233, 30, 99, 0.3);
+            line-height: 1.2;
+            text-transform: uppercase; 
+        }
+
+        /* Progress Bar */
+        #sync-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 240px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 5;
+        }
+        #sync-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--accent-green);
+            background: linear-gradient(90deg, #55efc4, #00b894);
+            box-shadow: 0 0 10px var(--accent-green);
+            border-radius: 10px;
+            transition: width 0.1s linear;
+        }
+        
+        canvas { display: block; cursor: grab; }
+        canvas:active { cursor: grabbing; }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <h1>Paradigm Shift</h1>
-        <div id="lyrics-container">
-            <p id="lyric-text" class="lyric-line">Initializing...</p>
-        </div>
-        <div id="status-bar">
-            <div id="instruction">Click & Drag to Rotate • Find the Angle</div>
-            <div id="progress-bar"><div id="progress-fill"></div></div>
-        </div>
+    <!-- Intro Animation Container -->
+    <div id="intro-overlay">
+        <div class="intro-title">PARADIGM<br>SHIFT</div>
     </div>
 
-    <div id="start-screen">
-        <h1 style="font-size: 2rem; margin-bottom: 20px;">Paradigm Shift</h1>
-        <p style="margin-bottom: 30px; text-align:center;">An Anamorphic Puzzle Experience</p>
-        <button id="start-btn">ENTER THE STATIC</button>
+    <div id="syrup-bg">
+        <div class="blob"></div>
+        <div class="blob"></div>
+        <div class="blob"></div>
     </div>
 
-    <div id="canvas-container"></div>
-
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <div id="level-indicator">LEVEL 1</div>
     
-    <script>
-        // --- SONG DATA & LEVELS ---
-        const songData = [
+    <div id="sync-container">
+        <div id="sync-bar"></div>
+    </div>
+
+    <div id="ui">
+        <div class="gummy-panel">
+            <h1 id="object-name">Find the...</h1>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+        // --- 1. RANDOM MUSIC ENGINE ---
+        
+        const songLibrary = [
             {
-                text: "In a field of floating colors, where the puzzle pieces drift,<br>All the shapes are scattered sideways, like a dream you almost missed.",
-                shape: "CUBE"
+                title: "Paradigm Shift (Anamorphic Assembly) — S",
+                // 1. Go to https://base64.guru/converter/encode/audio/mp3
+                // 2. Upload your MP3.
+                // 3. Paste the huge string inside these quotes:
+                src: "" 
             },
-            {
-                text: "But nothing here is broken, everything already fits—<br>You just haven’t found the angle where the <span class='highlight'>hidden truth</span> exists.",
-                shape: "PYRAMID"
-            },
-            {
-                text: "It’s a paradigm shift, when the chaos starts to lift,<br>And the <span class='highlight'>heart</span> inside the static melts right out of its cage.",
-                shape: "HEART"
-            },
-            {
-                text: "You rotate the world around you, searching gently for the sign,<br>Nothing changes in the object—only you <span class='highlight'>adjust your sight</span>.",
-                shape: "EYE"
-            },
-            {
-                text: "Twist the world—see the form. Shift the mind—break the norm.<br>What was chaos is a <span class='highlight'>key</span>.",
-                shape: "KEY"
-            },
-            {
-                text: "It’s a paradigm shift... All the meaning was already living right before your eyes,<br>Hold steady... let the <span class='highlight'>new self rise</span>.",
-                shape: "STAR"
-            }
+            // ADD MORE SONGS HERE:
+            // { title: "Song 2", src: "data:audio/mp3;base64,..." },
+            // { title: "Song 3", src: "data:audio/mp3;base64,..." }
         ];
 
-        let currentLevel = 0;
-        let isPlaying = false;
-        let isTransitioning = false;
-        
-        // --- THREE.JS SETUP ---
-        const scene = new THREE.Scene();
-        // Add fog for that "mist" effect mentioned in the song
-        scene.fog = new THREE.FogExp2(0x050505, 0.015);
+        let currentAudio = null;
+        let musicStarted = false;
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-        // Groups
-        let particlesGroup = new THREE.Group();
-        scene.add(particlesGroup);
-
-        // Mouse Interaction
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-        let targetRotation = { x: 0, y: 0 };
-        
-        // Camera Orbit Logic
-        let radius = 40;
-        let theta = 0; // Horizontal angle
-        let phi = Math.PI / 2; // Vertical angle (starts at equator)
-
-        // Randomize start angle so player must search
-        theta = Math.random() * Math.PI * 2;
-        phi = Math.random() * Math.PI;
-
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
-        pointLight.position.set(10, 10, 10);
-        scene.add(pointLight);
-
-        // --- GAME MECHANICS ---
-
-        // Shape Generators
-        function getShapePoints(type) {
-            const points = [];
-            const count = 600; // Number of particles
+        function initMusic() {
+            if (musicStarted || songLibrary.length === 0) return;
             
-            for(let i=0; i<count; i++) {
-                let x, y, z;
-                
-                // We generate X/Y based on the shape, Z is random (chaos depth)
-                // Z range is wide to create the anamorphic effect
-                z = (Math.random() - 0.5) * 60; 
-
-                if (type === "CUBE") {
-                    // Hollow Cube outline
-                    const r = Math.floor(Math.random() * 4); // 4 edges per face type roughly
-                    let side = (Math.random() - 0.5) * 10;
-                    if(r===0) { x = side; y = 5; }
-                    else if(r===1) { x = side; y = -5; }
-                    else if(r===2) { x = 5; y = side; }
-                    else { x = -5; y = side; }
-                } 
-                else if (type === "HEART") {
-                    // Heart Parametric Eq
-                    let t = Math.random() * Math.PI * 2;
-                    // Normalize density
-                    t = Math.asin(Math.sin(t)); // Bunch points slightly? 
-                    t = Math.random() * Math.PI * 2;
-                    
-                    x = 16 * Math.pow(Math.sin(t), 3);
-                    y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-                    x /= 3.5; y /= 3.5; // Scale down
-                }
-                else if (type === "PYRAMID") {
-                    // Triangle
-                    let r = Math.random();
-                    x = (r - 0.5) * 10;
-                    y = -4 + (1-Math.abs(x/5)) * 10;
-                    y -= 2; // center
-                }
-                else if (type === "EYE") {
-                    let t = Math.random() * Math.PI * 2;
-                    x = 8 * Math.cos(t);
-                    y = 4 * Math.sin(t); // Oval
-                    // Add pupil
-                    if (Math.random() > 0.8) {
-                        x = (Math.random()-0.5) * 3;
-                        y = (Math.random()-0.5) * 3;
-                    }
-                }
-                else if (type === "KEY") {
-                    // Shaft
-                    if(Math.random() > 0.3) {
-                        x = (Math.random() * 10) - 5; 
-                        y = 0;
-                    } else {
-                        // Head
-                        let t = Math.random() * Math.PI * 2;
-                        x = -5 + 2 * Math.cos(t);
-                        y = 2 * Math.sin(t);
-                    }
-                }
-                else if (type === "STAR") {
-                    // 5 point star logic roughly
-                    let t = Math.random() * Math.PI * 2;
-                    let r = 5 * (1 + 0.5*Math.sin(5*t)); // Polar coordinate star
-                    x = r * Math.cos(t);
-                    y = r * Math.sin(t);
-                }
-
-                points.push({x, y, z});
-            }
-            return points;
-        }
-
-        function createLevel(levelIndex) {
-            if(levelIndex >= songData.length) {
-                document.getElementById('lyric-text').innerHTML = "The paradigm has shifted.<br><span class='highlight'>COMPLETE</span>";
+            // Check if user has pasted a song
+            if (songLibrary[0].src === "") {
+                console.log("Music Engine: No Base64 string found. Please paste your song data.");
                 return;
             }
 
-            // Clean up old
-            while(particlesGroup.children.length > 0){ 
-                particlesGroup.remove(particlesGroup.children[0]); 
-            }
-
-            const data = songData[levelIndex];
-            document.getElementById('lyric-text').innerHTML = data.text;
-            
-            const points = getShapePoints(data.shape);
-            
-            const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-            
-            // Color palette changes per level
-            const hue = (levelIndex / songData.length) * 0.8 + 0.5; // Cyan to Purple to Pink
-            const color = new THREE.Color().setHSL(hue % 1, 0.8, 0.6);
-            
-            const material = new THREE.MeshBasicMaterial({ 
-                color: color,
-                wireframe: true 
-            });
-
-            points.forEach(p => {
-                const cube = new THREE.Mesh(geometry, material);
-                // Store the "Target" position (Where it looks right)
-                // And the "Actual" position in 3D space
-                
-                // THE TRICK: 
-                // We want the object to look like the shape when viewed from (0, 0, radius).
-                // But the object has a random Z depth.
-                // If we just place it at x,y,z, perspective will mess up the alignment.
-                // We need to scale x and y based on z to compensate for perspective.
-                
-                // Simple Orthographic trick approximation for visual flair:
-                // We just place them at x,y and random z. 
-                // The "Win" angle is at theta = 0, phi = PI/2 (Looking down Z axis).
-                
-                cube.position.set(p.x, p.y, p.z);
-                
-                // Store original random rotation for "drift" effect
-                cube.userData = { 
-                    rotationSpeed: (Math.random() - 0.5) * 0.02,
-                    originalZ: p.z
-                };
-                
-                particlesGroup.add(cube);
-            });
-
-            // Reset Camera to a random chaotic angle
-            theta = Math.random() * Math.PI * 2 + 1; // Ensure it's not 0
-            phi = Math.random() * Math.PI; 
+            musicStarted = true;
+            playRandomSong();
         }
 
-        // --- CONTROLS ---
-        document.addEventListener('mousedown', () => isDragging = true);
-        document.addEventListener('mouseup', () => isDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                const deltaMove = {
-                    x: e.offsetX - previousMousePosition.x,
-                    y: e.offsetY - previousMousePosition.y
-                };
-
-                theta -= deltaMove.x * 0.005;
-                phi -= deltaMove.y * 0.005;
-
-                // Clamp vertical look
-                phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+        function playRandomSong() {
+            // Stop current if playing
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
             }
-            previousMousePosition = { x: e.offsetX, y: e.offsetY };
-        });
+
+            // Pick random song
+            const randomIndex = Math.floor(Math.random() * songLibrary.length);
+            const song = songLibrary[randomIndex];
+            
+            console.log("Playing:", song.title);
+
+            currentAudio = new Audio(song.src);
+            currentAudio.volume = 0.5; 
+            
+            // Auto-play next song when this one ends
+            currentAudio.onended = () => {
+                playRandomSong();
+            };
+
+            // Handle play promise (browsers might block if not interactive)
+            currentAudio.play().catch(e => console.log("Audio play blocked, waiting for interaction:", e));
+        }
+
+
+        // --- 2. ENGINE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = null; 
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const aspect = width / height;
+        const d = 10; 
         
-        // Touch support
-        document.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        });
-        document.addEventListener('touchend', () => isDragging = false);
-        document.addEventListener('touchmove', (e) => {
-            if (isDragging) {
-                const deltaMove = {
-                    x: e.touches[0].clientX - previousMousePosition.x,
-                    y: e.touches[0].clientY - previousMousePosition.y
-                };
-                theta -= deltaMove.x * 0.005;
-                phi -= deltaMove.y * 0.005;
-                phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
-                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            }
-        });
+        const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 0.1, 1000);
+        camera.position.set(0, 0, 20); 
+        camera.lookAt(0, 0, 0);
 
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('start-screen').style.display = 'none';
-            isPlaying = true;
-            createLevel(currentLevel);
-            animate();
-        });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
 
-        // --- MAIN LOOP ---
-        let holdTimer = 0;
-        const HOLD_REQUIRED = 100; // Frames to hold steady
+        // --- 3. LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
 
-        function animate() {
-            requestAnimationFrame(animate);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(5, 10, 10);
+        scene.add(mainLight);
+        
+        const rimLight = new THREE.DirectionalLight(0xffffff, 1.0); 
+        rimLight.position.set(-5, 5, -5);
+        scene.add(rimLight);
+        
+        const sparkleLight = new THREE.PointLight(0xffffff, 1, 100);
+        sparkleLight.position.set(0, 0, 10);
+        scene.add(sparkleLight);
 
-            if(!isPlaying) return;
-
-            // Update Camera Position based on spherical coords
-            camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
-            camera.position.y = radius * Math.cos(phi);
-            camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
-            camera.lookAt(0, 0, 0);
-
-            // Particle Drift (Verse 1: "puzzle pieces drift")
-            particlesGroup.rotation.z += 0.0005; // Slow spin of whole world
-            particlesGroup.children.forEach(cube => {
-                cube.rotation.x += cube.userData.rotationSpeed;
-                cube.rotation.y += cube.userData.rotationSpeed;
-            });
-
-            // CHECK WIN CONDITION
-            // The target angle is looking down the Z axis from the front.
-            // Cartesian: (0, 0, radius).
-            // Spherical: Phi ~ PI/2, Theta ~ 0 (or 2PI).
-            
-            // Normalize theta to 0-2PI
-            let normTheta = theta % (Math.PI * 2);
-            if (normTheta < 0) normTheta += Math.PI * 2;
-
-            // Check if we are close to the "Sweet Spot" (0 degrees or 360 degrees on X/Z plane, Middle of Y)
-            // Tolerance window (in radians)
-            const tolerance = 0.15; 
-            
-            const isAlignedTheta = (normTheta < tolerance || normTheta > (Math.PI * 2 - tolerance));
-            const isAlignedPhi = Math.abs(phi - Math.PI/2) < tolerance;
-
-            if (isAlignedTheta && isAlignedPhi && !isTransitioning) {
-                // Alignment found ("Hold steady...")
-                holdTimer++;
-                
-                // Visual Feedback: Align particles on depth axis to snap visually
-                const snapStrength = holdTimer / HOLD_REQUIRED;
-                particlesGroup.children.forEach(cube => {
-                    // Lerp Z towards 0 to flatten the image
-                    cube.position.z = THREE.MathUtils.lerp(cube.userData.originalZ, 0, snapStrength);
-                    // Make it glow
-                    cube.material.color.setHex(0xffffff);
-                });
-
-                // UI Feedback
-                document.getElementById('instruction').innerText = "HOLD STEADY... " + Math.floor((holdTimer/HOLD_REQUIRED)*100) + "%";
-                document.getElementById('progress-fill').style.width = (holdTimer/HOLD_REQUIRED)*100 + "%";
-
-                if (holdTimer >= HOLD_REQUIRED) {
-                    levelComplete();
-                }
-
-            } else {
-                // Reset if player moves away
-                if (holdTimer > 0) holdTimer -= 5; // Decay
-                if (holdTimer < 0) holdTimer = 0;
-                
-                document.getElementById('instruction').innerText = "Search for the Angle";
-                document.getElementById('progress-fill').style.width = (holdTimer/HOLD_REQUIRED)*100 + "%";
-
-                // Return particles to chaotic state
-                particlesGroup.children.forEach(cube => {
-                    cube.position.z = THREE.MathUtils.lerp(cube.position.z, cube.userData.originalZ, 0.1);
-                    // Return to level color
-                    const hue = (currentLevel / songData.length) * 0.8 + 0.5;
-                    cube.material.color.setHSL(hue % 1, 0.8, 0.6);
-                });
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        function levelComplete() {
-            isTransitioning = true;
-            document.getElementById('instruction').innerText = "PARADIGM SHIFTED";
-            
-            // Flash effect
-            document.body.style.backgroundColor = "white";
-            setTimeout(() => {
-                document.body.style.backgroundColor = "#050505";
-            }, 100);
-
-            setTimeout(() => {
-                currentLevel++;
-                holdTimer = 0;
-                isTransitioning = false;
-                createLevel(currentLevel);
-            }, 2000);
-        }
-
-        // Window Resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-    </script>
-</body>
-</html>
+        // Flare FX
