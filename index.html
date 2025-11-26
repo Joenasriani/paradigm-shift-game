@@ -36,7 +36,6 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
-            /* 8s delay + 2.5s fade = 10.5s total intro */
             animation: fadeOutIntro 2.5s ease-in-out forwards;
             animation-delay: 8s; 
         }
@@ -105,12 +104,28 @@
             bottom: 50px;
             left: 0;
             width: 100%;
+            /* CHANGED TO COLUMN TO STACK TEXT ABOVE BUTTON */
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: flex-end;
             pointer-events: none;
             z-index: 10;
             opacity: 0; 
             transition: opacity 1s ease-in;
+            gap: 15px; /* Space between hold text and button */
+        }
+
+        /* NEW: Floating instruction text for Lvl 1 & 2 */
+        #hold-instruction {
+            font-size: 1.2rem;
+            color: var(--accent-green);
+            font-weight: 100;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease;
+            text-shadow: 0 0 15px rgba(85, 239, 196, 0.6);
         }
 
         .gummy-panel {
@@ -232,6 +247,9 @@
     </div>
 
     <div id="ui">
+        <!-- Added Hold Instruction Text -->
+        <div id="hold-instruction">Hold steady...</div>
+        
         <div class="gummy-panel">
             <h1 id="object-name">Find the...</h1>
         </div>
@@ -307,10 +325,9 @@
                 playRandomSong();
             };
 
-            // Attempt playback; if blocked, we wait for the fallback listeners
             currentAudio.play().catch(e => {
                 console.log("Auto-play blocked (waiting for interaction):", e);
-                musicStarted = false; // Reset so interaction listeners can retry
+                musicStarted = false;
             });
         }
 
@@ -368,6 +385,7 @@
         const boxGeo = new THREE.BoxGeometry(0.85, 0.85, 0.85); 
         
         const levels = [
+            // --- STANDARD LEVELS (Scale 1.0) ---
             {
                 name: "Raspberry Heart",
                 color: 0xe84393, 
@@ -381,16 +399,16 @@
                 ]
             },
             {
-                name: "Lemon Crown",
+                name: "Lemon Flower",
                 color: 0xfdc500, 
                 map: [
-                    "1000001",
-                    "1100011",
-                    "1110111",
-                    "1111111",
+                    "0011100",
+                    "0111110",
                     "1111111",
                     "0111110",
-                    "0011100"
+                    "0001000",
+                    "0011100",
+                    "0001000"
                 ]
             },
             {
@@ -423,17 +441,106 @@
                 ]
             },
             {
-                name: "Grape Invader",
+                name: "Grape Butterfly", 
                 color: 0x6c5ce7, 
                 map: [
-                    "00100000100",
-                    "00010001000",
+                    "110000011",
+                    "111010111",
+                    "011111110",
+                    "001111100",
+                    "011111110",
+                    "110000011"
+                ]
+            },
+            
+            // --- HD LEVELS (Scale 0.5, High Density) ---
+            {
+                name: "Cyan Snowflake",
+                color: 0x00cec9,
+                scale: 0.5, // HALF SIZE
+                map: [
+                    "00100100100",
+                    "01010101010",
+                    "00101110100",
+                    "11011111011",
                     "00111111100",
-                    "01101110110",
                     "11111111111",
-                    "10111111101",
-                    "10100000101",
-                    "00011011000"
+                    "00111111100",
+                    "11011111011",
+                    "00101110100",
+                    "01010101010",
+                    "00100100100"
+                ]
+            },
+            {
+                name: "Red Mushroom",
+                color: 0xff7675,
+                scale: 0.5,
+                map: [
+                    "00011111000",
+                    "01111111110",
+                    "11100100111",
+                    "11111111111",
+                    "11001110011",
+                    "11111111111",
+                    "01111111110",
+                    "00011111000",
+                    "00001110000",
+                    "00001110000",
+                    "00001110000"
+                ]
+            },
+            {
+                name: "Purple Potion",
+                color: 0xa29bfe,
+                scale: 0.5,
+                map: [
+                    "00001110000",
+                    "00001010000",
+                    "00001110000",
+                    "00011111000",
+                    "00111111100",
+                    "01111111110",
+                    "11110111111",
+                    "11111111111",
+                    "11111111111",
+                    "11111111111",
+                    "01111111110"
+                ]
+            },
+            {
+                name: "Yellow Lightning",
+                color: 0xffeaa7,
+                scale: 0.5,
+                map: [
+                    "00000111100000",
+                    "00001111000000",
+                    "00011110000000",
+                    "00111100000000",
+                    "01111111111110",
+                    "00000011110000",
+                    "00000111100000",
+                    "00001111000000",
+                    "00011100000000",
+                    "00110000000000"
+                ]
+            },
+            {
+                name: "Silver Robot",
+                color: 0xdfe6e9,
+                scale: 0.5,
+                map: [
+                    "0011100011100",
+                    "0010000000100",
+                    "0111111111110",
+                    "1101111111011",
+                    "1111111111111",
+                    "1101111111011",
+                    "1111111111111",
+                    "0111111111110",
+                    "0001111111000",
+                    "0001110111000",
+                    "0001110111000"
                 ]
             }
         ];
@@ -467,8 +574,11 @@
             isSolved = false;
             holdTimer = 0;
             
+            // Reset indicators
             document.getElementById('sync-bar').style.width = '0%';
             document.getElementById('sync-container').style.opacity = 0;
+            document.getElementById('hold-instruction').style.opacity = 0;
+            
             flareMesh.material.opacity = 0;
             flareMesh.scale.set(1,1,1);
             solveSequenceTime = 0;
@@ -498,13 +608,21 @@
             const offX = (cols - 1) / 2;
             const offY = (rows - 1) / 2;
 
+            // Scaling logic
+            const scale = data.scale || 1.0;
+            const spacing = 1.0 * scale;
+
             for(let r=0; r<rows; r++) {
                 for(let c=0; c<cols; c++) {
                     if(data.map[r][c] === '1') {
                         const mesh = new THREE.Mesh(boxGeo, currentMat);
-                        const x = c - offX;
-                        const y = (rows - 1 - r) - offY; 
+                        
+                        mesh.scale.set(scale, scale, scale);
+
+                        const x = (c - offX) * spacing;
+                        const y = ((rows - 1 - r) - offY) * spacing; 
                         const z = (Math.random() - 0.5) * 14; 
+                        
                         mesh.position.set(x, y, z);
                         puzzleGroup.add(mesh);
                     }
@@ -522,13 +640,11 @@
         const TOLERANCE = 0.08; 
 
         function handleInteraction() {
-            // Fallback to start music on any click/tap if auto-start failed
             if (!musicStarted) {
                 initMusic();
             }
         }
 
-        // Add listeners to window to catch clicks anywhere
         window.addEventListener('click', handleInteraction);
         window.addEventListener('touchstart', handleInteraction);
         window.addEventListener('keydown', handleInteraction);
@@ -560,6 +676,9 @@
             if(isSolved) {
                 solveSequenceTime += dt;
                 
+                // Hide hold text instantly on solve
+                document.getElementById('hold-instruction').style.opacity = 0;
+
                 if (solveSequenceTime < 1.0) {
                     const t = solveSequenceTime / 1.0;
                     const ease = 1 - Math.pow(1 - t, 3);
@@ -610,6 +729,16 @@
                 if (isAligned) {
                     holdTimer += dt;
                     
+                    // Show "Hold Steady..." ABOVE the button ONLY for Levels 1 & 2 (Index 0 and 1)
+                    if (currentLevel <= 1) {
+                        document.getElementById('hold-instruction').style.opacity = 1;
+                    } else {
+                        // For Levels 3+, standard behavior (Text inside button changes)
+                        document.getElementById('hold-instruction').style.opacity = 0;
+                        document.getElementById('object-name').innerText = "Hold Steady...";
+                        document.getElementById('object-name').style.color = "#55efc4";
+                    }
+
                     const intensity = (holdTimer / REQUIRED_HOLD) * 0.15;
                     puzzleGroup.position.set(
                         (Math.random() - 0.5) * intensity,
@@ -623,9 +752,6 @@
                     document.getElementById('sync-container').style.opacity = 1;
                     document.getElementById('sync-bar').style.width = `${(holdTimer / REQUIRED_HOLD) * 100}%`;
                     
-                    document.getElementById('object-name').innerText = "Hold Steady...";
-                    document.getElementById('object-name').style.color = "#55efc4";
-
                     if (holdTimer >= REQUIRED_HOLD) {
                         isSolved = true;
                         document.getElementById('object-name').innerText = levels[currentLevel].name;
@@ -643,6 +769,9 @@
                         document.getElementById('sync-bar').style.width = `${(holdTimer / REQUIRED_HOLD) * 100}%`;
                     } else {
                         document.getElementById('sync-container').style.opacity = 0;
+                        
+                        // Reset text behaviors based on level
+                        document.getElementById('hold-instruction').style.opacity = 0;
                         document.getElementById('object-name').innerText = "Find the " + levels[currentLevel].name;
                         document.getElementById('object-name').style.color = "#fff";
                     }
@@ -673,7 +802,6 @@
 
         loadLevel(0);
         
-        // ATTEMPT 1: Auto-start on load
         initMusic();
         
         animate();
