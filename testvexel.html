@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paradigm Shift - The Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        #lyrics-container {
+            text-align: center;
+            transition: opacity 1s ease;
+        }
+        h1 {
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+        p.lyric-line {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .highlight {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        #status-bar {
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.5;
+        }
+        #progress-bar {
+            width: 200px;
+            height: 2px;
+            background: #333;
+            margin: 10px auto;
+        }
+        #progress-fill {
+            height: 100%;
+            background: #00ffff;
+            width: 0%;
+            transition: width 0.2s;
+        }
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        button {
+            background: transparent;
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #00ffff;
+            color: black;
+            box-shadow: 0 0 20px #00ffff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h1>Paradigm Shift</h1>
+        <div id="lyrics-container">
+            <p id="lyric-text" class="lyric-line">Initializing...</p>
+        </div>
+        <div id="status-bar">
+            <div id="instruction">Click & Drag to Rotate • Find the Angle</div>
+            <div id="progress-bar"><div id="progress-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1 style="font-size: 2rem; margin-bottom: 20px;">Paradigm Shift</h1>
+        <p style="margin-bottom: 30px; text-align:center;">An Anamorphic Puzzle Experience</p>
+        <button id="start-btn">ENTER THE STATIC</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+        // --- SONG DATA & LEVELS ---
+        const songData = [
+            {
+                text: "In a field of floating colors, where the puzzle pieces drift,<br>All the shapes are scattered sideways, like a dream you almost missed.",
+                shape: "CUBE"
+            },
+            {
+                text: "But nothing here is broken, everything already fits—<br>You just haven’t found the angle where the <span class='highlight'>hidden truth</span> exists.",
+                shape: "PYRAMID"
+            },
+            {
+                text: "It’s a paradigm shift, when the chaos starts to lift,<br>And the <span class='highlight'>heart</span> inside the static melts right out of its cage.",
+                shape: "HEART"
+            },
+            {
+                text: "You rotate the world around you, searching gently for the sign,<br>Nothing changes in the object—only you <span class='highlight'>adjust your sight</span>.",
+                shape: "EYE"
+            },
+            {
+                text: "Twist the world—see the form. Shift the mind—break the norm.<br>What was chaos is a <span class='highlight'>key</span>.",
+                shape: "KEY"
+            },
+            {
+                text: "It’s a paradigm shift... All the meaning was already living right before your eyes,<br>Hold steady... let the <span class='highlight'>new self rise</span>.",
+                shape: "STAR"
+            }
+        ];
+
+        let currentLevel = 0;
+        let isPlaying = false;
+        let isTransitioning = false;
+        
+        // --- THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        // Add fog for that "mist" effect mentioned in the song
+        scene.fog = new THREE.FogExp2(0x050505, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Groups
+        let particlesGroup = new THREE.Group();
+        scene.add(particlesGroup);
+
+        // Mouse Interaction
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let targetRotation = { x: 0, y: 0 };
+        
+        // Camera Orbit Logic
+        let radius = 40;
+        let theta = 0; // Horizontal angle
+        let phi = Math.PI / 2; // Vertical angle (starts at equator)
+
+        // Randomize start angle so player must search
+        theta = Math.random() * Math.PI * 2;
+        phi = Math.random() * Math.PI;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+        pointLight.position.set(10, 10, 10);
+        scene.add(pointLight);
+
+        // --- GAME MECHANICS ---
+
+        // Shape Generators
+        function getShapePoints(type) {
+            const points = [];
+            const count = 600; // Number of particles
+            
+            for(let i=0; i<count; i++) {
+                let x, y, z;
+                
+                // We generate X/Y based on the shape, Z is random (chaos depth)
+                // Z range is wide to create the anamorphic effect
+                z = (Math.random() - 0.5) * 60; 
+
+                if (type === "CUBE") {
+                    // Hollow Cube outline
+                    const r = Math.floor(Math.random() * 4); // 4 edges per face type roughly
+                    let side = (Math.random() - 0.5) * 10;
+                    if(r===0) { x = side; y = 5; }
+                    else if(r===1) { x = side; y = -5; }
+                    else if(r===2) { x = 5; y = side; }
+                    else { x = -5; y = side; }
+                } 
+                else if (type === "HEART") {
+                    // Heart Parametric Eq
+                    let t = Math.random() * Math.PI * 2;
+                    // Normalize density
+                    t = Math.asin(Math.sin(t)); // Bunch points slightly? 
+                    t = Math.random() * Math.PI * 2;
+                    
+                    x = 16 * Math.pow(Math.sin(t), 3);
+                    y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                    x /= 3.5; y /= 3.5; // Scale down
+                }
+                else if (type === "PYRAMID") {
+                    // Triangle
+                    let r = Math.random();
+                    x = (r - 0.5) * 10;
+                    y = -4 + (1-Math.abs(x/5)) * 10;
+                    y -= 2; // center
+                }
+                else if (type === "EYE") {
+                    let t = Math.random() * Math.PI * 2;
+                    x = 8 * Math.cos(t);
+                    y = 4 * Math.sin(t); // Oval
+                    // Add pupil
+                    if (Math.random() > 0.8) {
+                        x = (Math.random()-0.5) * 3;
+                        y = (Math.random()-0.5) * 3;
+                    }
+                }
+                else if (type === "KEY") {
+                    // Shaft
+                    if(Math.random() > 0.3) {
+                        x = (Math.random() * 10) - 5; 
+                        y = 0;
+                    } else {
+                        // Head
+                        let t = Math.random() * Math.PI * 2;
+                        x = -5 + 2 * Math.cos(t);
+                        y = 2 * Math.sin(t);
+                    }
+                }
+                else if (type === "STAR") {
+                    // 5 point star logic roughly
+                    let t = Math.random() * Math.PI * 2;
+                    let r = 5 * (1 + 0.5*Math.sin(5*t)); // Polar coordinate star
+                    x = r * Math.cos(t);
+                    y = r * Math.sin(t);
+                }
+
+                points.push({x, y, z});
+            }
+            return points;
+        }
+
+        function createLevel(levelIndex) {
+            if(levelIndex >= songData.length) {
+                document.getElementById('lyric-text').innerHTML = "The paradigm has shifted.<br><span class='highlight'>COMPLETE</span>";
+                return;
+            }
+
+            // Clean up old
+            while(particlesGroup.children.length > 0){ 
+                particlesGroup.remove(particlesGroup.children[0]); 
+            }
+
+            const data = songData[levelIndex];
+            document.getElementById('lyric-text').innerHTML = data.text;
+            
+            const points = getShapePoints(data.shape);
+            
+            const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            
+            // Color palette changes per level
+            const hue = (levelIndex / songData.length) * 0.8 + 0.5; // Cyan to Purple to Pink
+            const color = new THREE.Color().setHSL(hue % 1, 0.8, 0.6);
+            
+            const material = new THREE.MeshBasicMaterial({ 
+                color: color,
+                wireframe: true 
+            });
+
+            points.forEach(p => {
+                const cube = new THREE.Mesh(geometry, material);
+                // Store the "Target" position (Where it looks right)
+                // And the "Actual" position in 3D space
+                
+                // THE TRICK: 
+                // We want the object to look like the shape when viewed from (0, 0, radius).
+                // But the object has a random Z depth.
+                // If we just place it at x,y,z, perspective will mess up the alignment.
+                // We need to scale x and y based on z to compensate for perspective.
+                
+                // Simple Orthographic trick approximation for visual flair:
+                // We just place them at x,y and random z. 
+                // The "Win" angle is at theta = 0, phi = PI/2 (Looking down Z axis).
+                
+                cube.position.set(p.x, p.y, p.z);
+                
+                // Store original random rotation for "drift" effect
+                cube.userData = { 
+                    rotationSpeed: (Math.random() - 0.5) * 0.02,
+                    originalZ: p.z
+                };
+                
+                particlesGroup.add(cube);
+            });
+
+            // Reset Camera to a random chaotic angle
+            theta = Math.random() * Math.PI * 2 + 1; // Ensure it's not 0
+            phi = Math.random() * Math.PI; 
+        }
+
+        // --- CONTROLS ---
+        document.addEventListener('mousedown', () => isDragging = true);
+        document.addEventListener('mouseup', () => isDragging = false);
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaMove = {
+                    x: e.offsetX - previousMousePosition.x,
+                    y: e.offsetY - previousMousePosition.y
+                };
+
+                theta -= deltaMove.x * 0.005;
+                phi -= deltaMove.y * 0.005;
+
+                // Clamp vertical look
+                phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+            }
+            previousMousePosition = { x: e.offsetX, y: e.offsetY };
+        });
+        
+        // Touch support
+        document.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        });
+        document.addEventListener('touchend', () => isDragging = false);
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                const deltaMove = {
+                    x: e.touches[0].clientX - previousMousePosition.x,
+                    y: e.touches[0].clientY - previousMousePosition.y
+                };
+                theta -= deltaMove.x * 0.005;
+                phi -= deltaMove.y * 0.005;
+                phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            isPlaying = true;
+            createLevel(currentLevel);
+            animate();
+        });
+
+        // --- MAIN LOOP ---
+        let holdTimer = 0;
+        const HOLD_REQUIRED = 100; // Frames to hold steady
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(!isPlaying) return;
+
+            // Update Camera Position based on spherical coords
+            camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+            camera.position.y = radius * Math.cos(phi);
+            camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+            camera.lookAt(0, 0, 0);
+
+            // Particle Drift (Verse 1: "puzzle pieces drift")
+            particlesGroup.rotation.z += 0.0005; // Slow spin of whole world
+            particlesGroup.children.forEach(cube => {
+                cube.rotation.x += cube.userData.rotationSpeed;
+                cube.rotation.y += cube.userData.rotationSpeed;
+            });
+
+            // CHECK WIN CONDITION
+            // The target angle is looking down the Z axis from the front.
+            // Cartesian: (0, 0, radius).
+            // Spherical: Phi ~ PI/2, Theta ~ 0 (or 2PI).
+            
+            // Normalize theta to 0-2PI
+            let normTheta = theta % (Math.PI * 2);
+            if (normTheta < 0) normTheta += Math.PI * 2;
+
+            // Check if we are close to the "Sweet Spot" (0 degrees or 360 degrees on X/Z plane, Middle of Y)
+            // Tolerance window (in radians)
+            const tolerance = 0.15; 
+            
+            const isAlignedTheta = (normTheta < tolerance || normTheta > (Math.PI * 2 - tolerance));
+            const isAlignedPhi = Math.abs(phi - Math.PI/2) < tolerance;
+
+            if (isAlignedTheta && isAlignedPhi && !isTransitioning) {
+                // Alignment found ("Hold steady...")
+                holdTimer++;
+                
+                // Visual Feedback: Align particles on depth axis to snap visually
+                const snapStrength = holdTimer / HOLD_REQUIRED;
+                particlesGroup.children.forEach(cube => {
+                    // Lerp Z towards 0 to flatten the image
+                    cube.position.z = THREE.MathUtils.lerp(cube.userData.originalZ, 0, snapStrength);
+                    // Make it glow
+                    cube.material.color.setHex(0xffffff);
+                });
+
+                // UI Feedback
+                document.getElementById('instruction').innerText = "HOLD STEADY... " + Math.floor((holdTimer/HOLD_REQUIRED)*100) + "%";
+                document.getElementById('progress-fill').style.width = (holdTimer/HOLD_REQUIRED)*100 + "%";
+
+                if (holdTimer >= HOLD_REQUIRED) {
+                    levelComplete();
+                }
+
+            } else {
+                // Reset if player moves away
+                if (holdTimer > 0) holdTimer -= 5; // Decay
+                if (holdTimer < 0) holdTimer = 0;
+                
+                document.getElementById('instruction').innerText = "Search for the Angle";
+                document.getElementById('progress-fill').style.width = (holdTimer/HOLD_REQUIRED)*100 + "%";
+
+                // Return particles to chaotic state
+                particlesGroup.children.forEach(cube => {
+                    cube.position.z = THREE.MathUtils.lerp(cube.position.z, cube.userData.originalZ, 0.1);
+                    // Return to level color
+                    const hue = (currentLevel / songData.length) * 0.8 + 0.5;
+                    cube.material.color.setHSL(hue % 1, 0.8, 0.6);
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function levelComplete() {
+            isTransitioning = true;
+            document.getElementById('instruction').innerText = "PARADIGM SHIFTED";
+            
+            // Flash effect
+            document.body.style.backgroundColor = "white";
+            setTimeout(() => {
+                document.body.style.backgroundColor = "#050505";
+            }, 100);
+
+            setTimeout(() => {
+                currentLevel++;
+                holdTimer = 0;
+                isTransitioning = false;
+                createLevel(currentLevel);
+            }, 2000);
+        }
+
+        // Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
