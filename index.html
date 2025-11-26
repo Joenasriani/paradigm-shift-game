@@ -36,8 +36,9 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
-            animation: fadeOutIntro 1s ease-in-out forwards;
-            animation-delay: 3.5s; 
+            /* Increased delay to allow for longer text animation + buffer time */
+            animation: fadeOutIntro 2s ease-in-out forwards;
+            animation-delay: 5.5s; 
         }
 
         .intro-title {
@@ -47,7 +48,8 @@
             text-align: center;
             line-height: 0.9;
             opacity: 0;
-            animation: cinematicText 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            /* Extended duration to 5s for a slower, more cinematic feel */
+            animation: cinematicText 5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
             animation-delay: 0.5s;
             text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
         }
@@ -333,18 +335,15 @@
                 ]
             },
             {
-                name: "Lemon Key",
+                name: "Lemon Crown",
                 color: 0xfdc500, 
                 map: [
-                    "0011100",
-                    "0100010",
-                    "0100010",
-                    "0011100",
-                    "0001000",
-                    "0001000",
-                    "0001000",
-                    "0011100",
-                    "0001000",
+                    "1000001",
+                    "1100011",
+                    "1110111",
+                    "1111111",
+                    "1111111",
+                    "0111110",
                     "0011100"
                 ]
             },
@@ -399,13 +398,13 @@
         let holdTimer = 0;
         const REQUIRED_HOLD = 1.5; 
 
-        // HANDLE INTRO FADE
+        // HANDLE INTRO FADE - Adjusted timing to match new CSS animation durations (5.5s delay + 2s animation ~ 7.5s total)
         setTimeout(() => {
             const intro = document.getElementById('intro-overlay');
             if(intro) intro.style.display = 'none';
             document.getElementById('ui').style.opacity = 1;
             document.getElementById('level-indicator').style.opacity = 1;
-        }, 4500); 
+        }, 7500); 
 
         function loadLevel(index) {
             if(index >= levels.length) {
