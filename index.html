@@ -36,9 +36,9 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
-            /* Increased delay to allow for longer text animation + buffer time */
-            animation: fadeOutIntro 2s ease-in-out forwards;
-            animation-delay: 5.5s; 
+            /* Increased duration and delay for a slower intro */
+            animation: fadeOutIntro 2.5s ease-in-out forwards;
+            animation-delay: 8s; 
         }
 
         .intro-title {
@@ -48,8 +48,8 @@
             text-align: center;
             line-height: 0.9;
             opacity: 0;
-            /* Extended duration to 5s for a slower, more cinematic feel */
-            animation: cinematicText 5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            /* Extended duration to 7s for a slower, more cinematic feel */
+            animation: cinematicText 7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
             animation-delay: 0.5s;
             text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
         }
@@ -398,13 +398,13 @@
         let holdTimer = 0;
         const REQUIRED_HOLD = 1.5; 
 
-        // HANDLE INTRO FADE - Adjusted timing to match new CSS animation durations (5.5s delay + 2s animation ~ 7.5s total)
+        // HANDLE INTRO FADE - Adjusted timing to match new CSS animation durations (8s delay + 2.5s animation = 10.5s total)
         setTimeout(() => {
             const intro = document.getElementById('intro-overlay');
             if(intro) intro.style.display = 'none';
             document.getElementById('ui').style.opacity = 1;
             document.getElementById('level-indicator').style.opacity = 1;
-        }, 7500); 
+        }, 10500); 
 
         function loadLevel(index) {
             if(index >= levels.length) {
