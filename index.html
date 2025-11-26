@@ -225,14 +225,9 @@
         const songLibrary = [
             {
                 title: "Paradigm Shift (Anamorphic Assembly) — S",
-                // 1. Go to https://base64.guru/converter/encode/audio/mp3
-                // 2. Upload your MP3.
-                // 3. Paste the huge string inside these quotes:
-                src: "" 
-            },
-            // ADD MORE SONGS HERE:
-            // { title: "Song 2", src: "data:audio/mp3;base64,..." },
-            // { title: "Song 3", src: "data:audio/mp3;base64,..." }
+                // The game will look for a folder named 'music' in the same directory
+                src: "music/Paradigm Shift (Anamorphic Assembly) — S.mp3" 
+            }
         ];
 
         let currentAudio = null;
@@ -241,24 +236,16 @@
         function initMusic() {
             if (musicStarted || songLibrary.length === 0) return;
             
-            // Check if user has pasted a song
-            if (songLibrary[0].src === "") {
-                console.log("Music Engine: No Base64 string found. Please paste your song data.");
-                return;
-            }
-
             musicStarted = true;
             playRandomSong();
         }
 
         function playRandomSong() {
-            // Stop current if playing
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio = null;
             }
 
-            // Pick random song
             const randomIndex = Math.floor(Math.random() * songLibrary.length);
             const song = songLibrary[randomIndex];
             
@@ -267,13 +254,11 @@
             currentAudio = new Audio(song.src);
             currentAudio.volume = 0.5; 
             
-            // Auto-play next song when this one ends
             currentAudio.onended = () => {
                 playRandomSong();
             };
 
-            // Handle play promise (browsers might block if not interactive)
-            currentAudio.play().catch(e => console.log("Audio play blocked, waiting for interaction:", e));
+            currentAudio.play().catch(e => console.log("Audio play blocked or file missing:", e));
         }
 
 
@@ -312,3 +297,322 @@
         scene.add(sparkleLight);
 
         // Flare FX
+        const flareGeo = new THREE.RingGeometry(5.5, 6, 64);
+        const flareMat = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff, 
+            transparent: true, 
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+        const flareMesh = new THREE.Mesh(flareGeo, flareMat);
+        flareMesh.position.z = -8; 
+        scene.add(flareMesh);
+
+        // --- 4. SCULPTURE GENERATOR ---
+        const puzzleGroup = new THREE.Group();
+        scene.add(puzzleGroup);
+        
+        const boxGeo = new THREE.BoxGeometry(0.85, 0.85, 0.85); 
+        
+        const levels = [
+            {
+                name: "Raspberry Heart",
+                color: 0xe84393, 
+                map: [
+                    "0110110",
+                    "1111111",
+                    "1111111",
+                    "0111110",
+                    "0011100",
+                    "0001000"
+                ]
+            },
+            {
+                name: "Lemon Key",
+                color: 0xfdc500, 
+                map: [
+                    "0011100",
+                    "0100010",
+                    "0100010",
+                    "0011100",
+                    "0001000",
+                    "0001000",
+                    "0001000",
+                    "0011100",
+                    "0001000",
+                    "0011100"
+                ]
+            },
+            {
+                name: "Berry Sword",
+                color: 0x0984e3,
+                map: [
+                    "0001000",
+                    "0001000",
+                    "0001000",
+                    "0001000",
+                    "0111110",
+                    "0001000",
+                    "0001000",
+                    "0001000",
+                    "0001000",
+                    "0011100"
+                ]
+            },
+            {
+                name: "Mint Chair",
+                color: 0x00b894,
+                map: [
+                    "0010000",
+                    "0010000",
+                    "0010000",
+                    "0011110",
+                    "0010010",
+                    "0010010",
+                    "0010010"
+                ]
+            },
+            {
+                name: "Grape Invader",
+                color: 0x6c5ce7, 
+                map: [
+                    "00100000100",
+                    "00010001000",
+                    "00111111100",
+                    "01101110110",
+                    "11111111111",
+                    "10111111101",
+                    "10100000101",
+                    "00011011000"
+                ]
+            }
+        ];
+
+        let currentLevel = 0;
+        let isSolved = false;
+        let currentMat = null;
+        let holdTimer = 0;
+        const REQUIRED_HOLD = 1.5; 
+
+        // HANDLE INTRO FADE
+        setTimeout(() => {
+            const intro = document.getElementById('intro-overlay');
+            if(intro) intro.style.display = 'none';
+            document.getElementById('ui').style.opacity = 1;
+            document.getElementById('level-indicator').style.opacity = 1;
+        }, 4500); 
+
+        function loadLevel(index) {
+            if(index >= levels.length) {
+                document.getElementById('object-name').innerText = "SUGAR RUSH COMPLETE";
+                return;
+            }
+
+            const data = levels[index];
+            currentLevel = index;
+            isSolved = false;
+            holdTimer = 0;
+            
+            document.getElementById('sync-bar').style.width = '0%';
+            document.getElementById('sync-container').style.opacity = 0;
+            flareMesh.material.opacity = 0;
+            flareMesh.scale.set(1,1,1);
+            solveSequenceTime = 0;
+            
+            while(puzzleGroup.children.length > 0){ 
+                puzzleGroup.remove(puzzleGroup.children[0]); 
+            }
+
+            document.getElementById('level-indicator').innerText = `LEVEL ${index+1}`;
+            document.getElementById('object-name').innerText = "Find the " + data.name;
+            document.getElementById('object-name').style.opacity = 1;
+            document.getElementById('object-name').style.color = "#fff";
+            
+            currentMat = new THREE.MeshPhysicalMaterial({ 
+                color: data.color,
+                metalness: 0.1,
+                roughness: 0.1,
+                transmission: 0.6, 
+                thickness: 1.5,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                ior: 1.5,
+            });
+
+            const rows = data.map.length;
+            const cols = data.map[0].length;
+            const offX = (cols - 1) / 2;
+            const offY = (rows - 1) / 2;
+
+            for(let r=0; r<rows; r++) {
+                for(let c=0; c<cols; c++) {
+                    if(data.map[r][c] === '1') {
+                        const mesh = new THREE.Mesh(boxGeo, currentMat);
+                        const x = c - offX;
+                        const y = (rows - 1 - r) - offY; 
+                        const z = (Math.random() - 0.5) * 14; 
+                        mesh.position.set(x, y, z);
+                        puzzleGroup.add(mesh);
+                    }
+                }
+            }
+
+            puzzleGroup.rotation.x = (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random());
+            puzzleGroup.rotation.y = (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random());
+            puzzleGroup.rotation.z = (Math.random() - 0.5);
+        }
+
+        // --- 5. INTERACTION ---
+        let isDragging = false;
+        let prevPos = { x: 0, y: 0 };
+        const TOLERANCE = 0.08; 
+
+        function onDown(x, y) {
+            // Start Music on first interaction (Browser Policy)
+            if (!musicStarted) {
+                initMusic();
+            }
+
+            if(isSolved) return;
+            isDragging = true;
+            prevPos = { x, y };
+        }
+        function onUp() { isDragging = false; }
+        function onMove(x, y) {
+            if(isDragging && !isSolved) {
+                const dx = x - prevPos.x;
+                const dy = y - prevPos.y;
+                puzzleGroup.rotation.y += dx * 0.008;
+                puzzleGroup.rotation.x += dy * 0.008;
+                prevPos = { x, y };
+            }
+        }
+
+        // --- 6. ANIMATION LOOP ---
+        let solveSequenceTime = 0;
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+
+            if(isSolved) {
+                solveSequenceTime += dt;
+                
+                if (solveSequenceTime < 1.0) {
+                    const t = solveSequenceTime / 1.0;
+                    const ease = 1 - Math.pow(1 - t, 3);
+                    
+                    puzzleGroup.rotation.set(
+                        THREE.MathUtils.lerp(puzzleGroup.rotation.x, 0, 0.1),
+                        THREE.MathUtils.lerp(puzzleGroup.rotation.y, 0, 0.1),
+                        THREE.MathUtils.lerp(puzzleGroup.rotation.z, 0, 0.1)
+                    );
+                    
+                    puzzleGroup.children.forEach(child => {
+                        child.position.z = THREE.MathUtils.lerp(child.position.z, 0, 0.1);
+                    });
+                    
+                    puzzleGroup.position.set(0,0,0);
+
+                    flareMesh.material.opacity = Math.sin(t * Math.PI) * 0.8;
+                    flareMesh.scale.setScalar(1 + t * 0.5);
+                    
+                    if (currentMat) {
+                        currentMat.emissive.setHex(0xffffff);
+                        currentMat.emissiveIntensity = ease * 0.8; 
+                    }
+                } 
+                else if (solveSequenceTime < 2.5) {
+                    puzzleGroup.rotation.set(0,0,0);
+                    flareMesh.material.opacity = THREE.MathUtils.lerp(flareMesh.material.opacity, 0, 0.05);
+                    if (currentMat) currentMat.emissiveIntensity = 0.2;
+                }
+                else {
+                    loadLevel(currentLevel + 1);
+                }
+                
+                document.getElementById('sync-container').style.opacity = 0;
+
+            } else {
+                const wrap = (r) => {
+                    let a = r % (Math.PI * 2);
+                    if (a > Math.PI) a -= Math.PI * 2;
+                    if (a < -Math.PI) a += Math.PI * 2;
+                    return a;
+                }
+                const rx = wrap(puzzleGroup.rotation.x);
+                const ry = wrap(puzzleGroup.rotation.y);
+                
+                const isAligned = Math.abs(rx) < TOLERANCE && Math.abs(ry) < TOLERANCE;
+
+                if (isAligned) {
+                    holdTimer += dt;
+                    
+                    const intensity = (holdTimer / REQUIRED_HOLD) * 0.15;
+                    puzzleGroup.position.set(
+                        (Math.random() - 0.5) * intensity,
+                        (Math.random() - 0.5) * intensity,
+                        0
+                    );
+                    
+                    flareMesh.material.opacity = (holdTimer / REQUIRED_HOLD) * 0.4;
+                    flareMesh.scale.setScalar(0.8 + (holdTimer / REQUIRED_HOLD) * 0.2);
+
+                    document.getElementById('sync-container').style.opacity = 1;
+                    document.getElementById('sync-bar').style.width = `${(holdTimer / REQUIRED_HOLD) * 100}%`;
+                    
+                    document.getElementById('object-name').innerText = "Hold Steady...";
+                    document.getElementById('object-name').style.color = "#55efc4";
+
+                    if (holdTimer >= REQUIRED_HOLD) {
+                        isSolved = true;
+                        document.getElementById('object-name').innerText = levels[currentLevel].name;
+                        document.getElementById('object-name').style.opacity = 1;
+                        document.getElementById('object-name').style.color = "#fff";
+                        
+                        const panel = document.querySelector('.gummy-panel');
+                        panel.style.transform = "scale(1.05)";
+                        setTimeout(() => panel.style.transform = "scale(1)", 200);
+                    }
+                } else {
+                    if (holdTimer > 0) {
+                        holdTimer -= dt * 3.0; 
+                        if (holdTimer < 0) holdTimer = 0;
+                        document.getElementById('sync-bar').style.width = `${(holdTimer / REQUIRED_HOLD) * 100}%`;
+                    } else {
+                        document.getElementById('sync-container').style.opacity = 0;
+                        document.getElementById('object-name').innerText = "Find the " + levels[currentLevel].name;
+                        document.getElementById('object-name').style.color = "#fff";
+                    }
+                    
+                    flareMesh.material.opacity = 0;
+                    puzzleGroup.position.set(0,0,0);
+                }
+                
+                puzzleGroup.rotation.z = THREE.MathUtils.lerp(puzzleGroup.rotation.z, 0, 0.02);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+        window.addEventListener('touchstart', e => onDown(e.touches[0].clientX, e.touches[0].clientY), {passive:false});
+        window.addEventListener('touchend', onUp);
+        window.addEventListener('touchmove', e => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+
+        window.addEventListener('resize', () => {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.left = -d * aspect; camera.right = d * aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        loadLevel(0);
+        animate();
+
+    </script>
+</body>
+</html>
