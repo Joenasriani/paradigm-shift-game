@@ -36,6 +36,7 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
+            /* 8s delay + 2.5s fade = 10.5s total intro */
             animation: fadeOutIntro 2.5s ease-in-out forwards;
             animation-delay: 8s; 
         }
@@ -155,8 +156,8 @@
         }
 
         #mute-btn {
-            top: 80px; /* Positioned below level indicator */
-            pointer-events: auto; /* Needs to be clickable */
+            top: 80px; 
+            pointer-events: auto; 
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -164,7 +165,7 @@
         }
 
         #mute-btn:active {
-            transform: scale(0.95); /* Squish effect */
+            transform: scale(0.95); 
         }
 
         h1#object-name { 
@@ -260,7 +261,7 @@
         const muteBtn = document.getElementById('mute-btn');
         
         muteBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent clicking through to 3D scene
+            e.stopPropagation(); 
             isMuted = !isMuted;
             
             if (currentAudio) {
@@ -273,7 +274,7 @@
         function updateMuteUI() {
             if (isMuted) {
                 muteBtn.innerText = "SOUND: OFF";
-                muteBtn.style.opacity = "0.5"; // Dim when muted
+                muteBtn.style.opacity = "0.5"; 
             } else {
                 muteBtn.innerText = "SOUND: ON";
                 muteBtn.style.opacity = "1";
@@ -300,13 +301,17 @@
 
             currentAudio = new Audio(song.src);
             currentAudio.volume = 0.5; 
-            currentAudio.muted = isMuted; // Respect mute state on new song
+            currentAudio.muted = isMuted; 
             
             currentAudio.onended = () => {
                 playRandomSong();
             };
 
-            currentAudio.play().catch(e => console.log("Audio play blocked or file missing:", e));
+            // Attempt playback; if blocked, we wait for the fallback listeners
+            currentAudio.play().catch(e => {
+                console.log("Auto-play blocked (waiting for interaction):", e);
+                musicStarted = false; // Reset so interaction listeners can retry
+            });
         }
 
 
@@ -516,13 +521,19 @@
         let prevPos = { x: 0, y: 0 };
         const TOLERANCE = 0.08; 
 
-        function onDown(x, y) {
-            // Check if clicking the mute button or UI is handled by stopPropagation
-            // so we only need to start music here if it hasn't started.
+        function handleInteraction() {
+            // Fallback to start music on any click/tap if auto-start failed
             if (!musicStarted) {
                 initMusic();
             }
+        }
 
+        // Add listeners to window to catch clicks anywhere
+        window.addEventListener('click', handleInteraction);
+        window.addEventListener('touchstart', handleInteraction);
+        window.addEventListener('keydown', handleInteraction);
+
+        function onDown(x, y) {
             if(isSolved) return;
             isDragging = true;
             prevPos = { x, y };
@@ -661,6 +672,10 @@
         });
 
         loadLevel(0);
+        
+        // ATTEMPT 1: Auto-start on load
+        initMusic();
+        
         animate();
 
     </script>
