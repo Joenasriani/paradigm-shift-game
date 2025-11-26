@@ -36,7 +36,6 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
-            /* Increased duration and delay for a slower intro */
             animation: fadeOutIntro 2.5s ease-in-out forwards;
             animation-delay: 8s; 
         }
@@ -48,7 +47,6 @@
             text-align: center;
             line-height: 0.9;
             opacity: 0;
-            /* Extended duration to 7s for a slower, more cinematic feel */
             animation: cinematicText 7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
             animation-delay: 0.5s;
             text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
@@ -134,9 +132,9 @@
             transform: scale(0.95);
         }
 
-        #level-indicator {
+        /* SHARED GLASS STYLE FOR TOP LEFT ELEMENTS */
+        .glass-widget {
             position: absolute;
-            top: 30px;
             left: 30px;
             color: white;
             font-size: 0.9rem;
@@ -149,7 +147,24 @@
             border: 1px solid rgba(255,255,255,0.2);
             backdrop-filter: blur(10px);
             opacity: 0; 
-            transition: opacity 1s ease-in;
+            transition: opacity 1s ease-in, transform 0.1s ease;
+        }
+
+        #level-indicator {
+            top: 30px;
+        }
+
+        #mute-btn {
+            top: 80px; /* Positioned below level indicator */
+            pointer-events: auto; /* Needs to be clickable */
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #mute-btn:active {
+            transform: scale(0.95); /* Squish effect */
         }
 
         h1#object-name { 
@@ -207,7 +222,9 @@
         <div class="blob"></div>
     </div>
 
-    <div id="level-indicator">LEVEL 1</div>
+    <!-- Top Left UI -->
+    <div id="level-indicator" class="glass-widget">LEVEL 1</div>
+    <div id="mute-btn" class="glass-widget">SOUND: ON</div>
     
     <div id="sync-container">
         <div id="sync-bar"></div>
@@ -227,18 +244,41 @@
         const songLibrary = [
             {
                 title: "Paradigm Shift (Anamorphic Assembly) — S",
-                // The game will look for a folder named 'music' in the same directory
                 src: "music/Paradigm Shift (Anamorphic Assembly) — S.mp3" 
             },
             {
                 title: "Paradigm Shift (Anamorphic Assembly) — S - Female",
-                // New track added to the music folder path
                 src: "music/Paradigm Shift (Anamorphic Assembly) — S - Female.mp3"
             }
         ];
 
         let currentAudio = null;
         let musicStarted = false;
+        let isMuted = false;
+
+        // Mute Button Logic
+        const muteBtn = document.getElementById('mute-btn');
+        
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent clicking through to 3D scene
+            isMuted = !isMuted;
+            
+            if (currentAudio) {
+                currentAudio.muted = isMuted;
+            }
+            
+            updateMuteUI();
+        });
+
+        function updateMuteUI() {
+            if (isMuted) {
+                muteBtn.innerText = "SOUND: OFF";
+                muteBtn.style.opacity = "0.5"; // Dim when muted
+            } else {
+                muteBtn.innerText = "SOUND: ON";
+                muteBtn.style.opacity = "1";
+            }
+        }
 
         function initMusic() {
             if (musicStarted || songLibrary.length === 0) return;
@@ -260,6 +300,7 @@
 
             currentAudio = new Audio(song.src);
             currentAudio.volume = 0.5; 
+            currentAudio.muted = isMuted; // Respect mute state on new song
             
             currentAudio.onended = () => {
                 playRandomSong();
@@ -398,12 +439,16 @@
         let holdTimer = 0;
         const REQUIRED_HOLD = 1.5; 
 
-        // HANDLE INTRO FADE - Adjusted timing to match new CSS animation durations (8s delay + 2.5s animation = 10.5s total)
+        // HANDLE INTRO FADE
         setTimeout(() => {
             const intro = document.getElementById('intro-overlay');
             if(intro) intro.style.display = 'none';
             document.getElementById('ui').style.opacity = 1;
-            document.getElementById('level-indicator').style.opacity = 1;
+            
+            // Show both top-left widgets
+            const widgets = document.querySelectorAll('.glass-widget');
+            widgets.forEach(w => w.style.opacity = 1);
+            
         }, 10500); 
 
         function loadLevel(index) {
@@ -472,7 +517,8 @@
         const TOLERANCE = 0.08; 
 
         function onDown(x, y) {
-            // Start Music on first interaction (Browser Policy)
+            // Check if clicking the mute button or UI is handled by stopPropagation
+            // so we only need to start music here if it hasn't started.
             if (!musicStarted) {
                 initMusic();
             }
