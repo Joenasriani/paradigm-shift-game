@@ -1,21 +1,15 @@
 # Paradigm Shift
 
-**Author:** Joe Nasr  
-**Canonical identity:** https://joe-nasr-signals.vercel.app/v2/  
-**Live build:** https://joenasriani.github.io/paradigm-shift-game/
+**Historical release label:** Paradigm Shift: Lebanese Edition  
+**Status:** original browser perspective puzzle and interactive visual game  
+**Play:** https://joenasriani.github.io/paradigm-shift-game/  
+**Creator:** Joe Nasr  
+**Creator identity:** https://joe-nasr-signals.vercel.app/v2/
 
-Paradigm Shift is an original browser game and interactive visual experiment by Joe Nasr. The repository contains the playable HTML implementation and its music assets.
+Paradigm Shift is a browser perspective puzzle in which changing viewpoint reveals hidden patterns, routes and spatial relationships.
 
-## Status
+Paradigm Shift and Paradigm Shift: Lebanese Edition refer to the same game lineage.
 
-Playable web project.
+The playable implementation is contained in this repository together with its music assets. This repository is the public source behind the GitHub Pages build.
 
-## Source
-
-The main experience is implemented in `index.html` and runs directly in a modern browser. The repository is also the source behind the public GitHub Pages build linked above.
-
-## Provenance
-
-This project belongs to the same Joe Nasr identity represented by the `Joenasriani` GitHub account and the canonical identity record above.
-
-Repository: https://github.com/Joenasriani/paradigm-shift-game
+Existing branches and historical files are retained as development history.
